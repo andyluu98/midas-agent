@@ -11,6 +11,7 @@ from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .tradingview_provider import get_tradingview_analysis_report
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -38,7 +39,8 @@ TOOLS_CATEGORIES = {
     "technical_indicators": {
         "description": "Technical analysis indicators",
         "tools": [
-            "get_indicators"
+            "get_indicators",
+            "get_realtime_analysis"
         ]
     },
     "fundamental_data": {
@@ -63,6 +65,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "tradingview",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -76,6 +79,9 @@ VENDOR_METHODS = {
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+    },
+    "get_realtime_analysis": {
+        "tradingview": get_tradingview_analysis_report,
     },
     # fundamental_data
     "get_fundamentals": {

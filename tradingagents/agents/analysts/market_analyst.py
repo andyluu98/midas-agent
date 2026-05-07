@@ -4,6 +4,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_indicators,
     get_language_instruction,
     get_stock_data,
+    get_realtime_analysis,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -17,10 +18,22 @@ def create_market_analyst(llm):
         tools = [
             get_stock_data,
             get_indicators,
+            get_realtime_analysis,
         ]
 
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+            """You are a financial market expert. Your goal is to provide a comprehensive technical analysis report.
+
+You have access to:
+1. Historical data and calculated indicators (SMA, EMA, RSI, MACD, etc.) via `get_stock_data` and `get_indicators`.
+2. **Real-time technical signals** from TradingView via `get_realtime_analysis`.
+
+**CRITICAL INSTRUCTION FOR SCALPING & DAY TRADING:**
+- Use `get_realtime_analysis` with intervals like '5m', '15m', and '1h' to capture the current market momentum.
+- Compare these real-time signals with the historical trend to identify if the current move is a continuation or a reversal.
+- If the user is interested in short-term trading (like Vàng/Gold), prioritize recent price action and momentum over long-term averages.
+
+Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
