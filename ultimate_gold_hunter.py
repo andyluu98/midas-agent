@@ -62,6 +62,12 @@ def run_ultimate_hunter(ticker="XAUUSD"):
     config["quick_think_llm"] = "deepseek-v4-flash"
     config["output_language"] = "Vietnamese"
     config["max_debate_rounds"] = 2
+    # Alpha Vantage có news endpoint cho commodity; yfinance không có news cho
+    # XAUUSD spot, dẫn đến News Analyst phải scrape rất chật vật.
+    config["data_vendors"] = {
+        **config.get("data_vendors", {}),
+        "news_data": "alpha_vantage",
+    }
 
     ta = TradingAgentsGraph(debug=False, config=config)
 
@@ -110,7 +116,24 @@ YÊU CẦU QUYẾT ĐỊNH CUỐI CÙNG: MUA/BÁN/ĐỨNG NGOÀI?
     print(f"\n{context_msg}")
     print("-" * 30)
     
-    _, decision = ta.propagate(ticker, trade_date)
+    final_state, decision = ta.propagate(ticker, trade_date)
+
+    # In các báo cáo phân tích cho người dùng nhìn trực tiếp.
+    # Trước đây các báo cáo chỉ được lưu vào ~/.tradingagents/logs/...json
+    # nên người chạy không biết tin tức và lập luận đầy đủ của hội đồng.
+    def _section(title: str, body: str) -> None:
+        if not body:
+            return
+        print(f"\n\n{'─' * 60}\n📰 {title}\n{'─' * 60}")
+        print(body)
+
+    _section("NEWS REPORT (tin tức vĩ mô + ngành vàng)", final_state.get("news_report", ""))
+    _section("SENTIMENT REPORT (tâm lý thị trường)", final_state.get("sentiment_report", ""))
+    _section("FUNDAMENTALS REPORT (yếu tố cơ bản)", final_state.get("fundamentals_report", ""))
+    _section("INVESTMENT PLAN (Research Manager)", final_state.get("investment_plan", ""))
+    _section("FINAL TRADE DECISION (Portfolio Manager)", final_state.get("final_trade_decision", ""))
+
+    print(f"\n\n{'═' * 60}\n🎯 SIGNAL TÓM TẮT (đã xử lý)\n{'═' * 60}")
     print(decision)
 
     # TẦNG 3: THỦ KHO TÍNH LOT
