@@ -1,203 +1,280 @@
-# Midas Agent: Multi-Agent LLM Financial Trading Framework
+# Midas Agent — AI Trading Framework cho XAUUSD Scalp M15
 
-Midas Agent is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. Specialized LLM-powered agents — fundamental analysts, sentiment experts, technical analysts, traders, and a risk management team — collaboratively evaluate market conditions and inform trading decisions through dynamic debate.
+**Midas Agent** dựng một "phòng họp 8 chuyên gia AI" trong máy bạn, chuyên trade vàng (XAUUSD) khung M15 trên MT5 Exness. Mỗi phiên ~90 giây, chi phí ~$0.20.
 
 <div align="center">
 
-⚡ [Installation & CLI](#installation-and-cli) | 📦 [Package Usage](#python-package-usage) | 🤝 [Contributing](#contributing)
+⚡ [Cài đặt nhanh](#cài-đặt-nhanh)  |  🏹 [Săn vàng (Gold Hunter)](#săn-vàng--ultimate_gold_hunterpy)  |  ⚙️ [3 file cần biết](#3-file-bạn-cần-biết)  |  🔍 [Search backend](#search-backend-tự-động)  |  🛡️ [Cảnh báo rủi ro](#cảnh-báo-rủi-ro)
 
 </div>
 
-<p align="center">
-  <img src="assets/schema.png" style="width: 100%; height: auto;">
-</p>
+> ⚠️ **Midas Agent là công cụ NGHIÊN CỨU + HỖ TRỢ RA QUYẾT ĐỊNH.** Output là **tín hiệu tham khảo** — KHÔNG phải khuyến nghị đầu tư. Paper trade tối thiểu 2 tuần trước khi chạy live. AI có thể sai, thị trường có thể black-swan.
 
-> Midas Agent is designed for research purposes. Trading performance varies with the chosen LLM, model temperature, trading period, data quality, and other non-deterministic factors. **This is not financial, investment, or trading advice.**
+---
 
-The framework decomposes complex trading tasks into specialized roles for a robust, scalable approach to market analysis and decision-making.
+## 🎯 Vì sao Midas khác
 
-### Analyst Team
-- **Fundamentals Analyst** — Evaluates company financials and performance metrics, identifying intrinsic value and red flags.
-- **Sentiment Analyst** — Analyzes social media and public sentiment to gauge short-term market mood.
-- **News Analyst** — Monitors global news and macroeconomic indicators, interpreting event impact on markets.
-- **Technical Analyst** — Applies indicators (MACD, RSI, …) to detect patterns and forecast price movement.
+| Tiêu chí | Trader tự đọc | ChatGPT thuần | Indicator Bot | **Midas Agent** |
+|----------|:-:|:-:|:-:|:-:|
+| Số góc nhìn | 1 | 1 | 1 | **8 góc** ✅ |
+| Tranh luận đa vòng | ❌ | ❌ | ❌ | **✅ 2-4 vòng** |
+| Bộ nhớ tự học | ❌ | ❌ | ❌ | **✅** |
+| Ra SL/TP/Lot cụ thể | Tự tính | Mơ hồ | Cứng | **✅ Auto** |
+| Hiểu tin tức + tâm lý | Thủ công | Không có data | ❌ | **✅ Realtime** |
+| Chi phí | Thời gian | $20/tháng | $10-100/tháng | **$0.20/phiên** |
 
-<p align="center">
-  <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
+---
 
-### Researcher Team
-- Bullish and bearish researchers critically assess insights from the Analyst Team. Through structured debate, they balance potential gains against inherent risks.
+## 🏗️ Kiến trúc — 8 Agent + 4 Tầng
 
-<p align="center">
-  <img src="assets/researcher.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
+Mô phỏng cách các quỹ đầu cơ tỉ đô (Citadel, Renaissance) vận hành:
 
-### Trader Agent
-- Composes reports from analysts and researchers to make informed trading decisions, determining timing and magnitude of trades.
+**Tầng 1 — Phân tích (4 chuyên viên song song)**
+- **Fundamentals Analyst** — Macro (lãi suất Fed, CPI, USD index, GLD ETF flow)
+- **Sentiment Analyst** — Twitter/Reddit gold sentiment
+- **News Analyst** — Fed/CPI/NFP/FOMC + geopolitical
+- **Technical Analyst** — RSI/MACD/Bollinger trên khung M15
 
-<p align="center">
-  <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
+**Tầng 2 — Tranh luận (2 vòng debate)**
+- **Bull Researcher** ⚔️ **Bear Researcher** — cãi nhau bằng số liệu, chống AI ảo
 
-### Risk Management and Portfolio Manager
-- The risk team continuously evaluates portfolio risk via volatility, liquidity, and other factors, adjusting strategies and reporting to the Portfolio Manager.
-- The Portfolio Manager approves or rejects each transaction proposal. Approved orders are sent to the simulated exchange.
+**Tầng 3 — Trader**
+- Đề xuất MUA/BÁN/ĐỨNG NGOÀI kèm Entry + SL + TP
 
-<p align="center">
-  <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
-</p>
+**Tầng 4 — Rủi ro + Sếp**
+- 3 Risk Debator (hung hăng / thận trọng / trung lập) → **Portfolio Manager** gõ búa cuối
 
-## Installation and CLI
+---
 
-### Installation
+## 🏹 Săn vàng — `ultimate_gold_hunter.py`
 
-Clone the repo:
+Script ĐẶC BIỆT cho trader vàng. Combo 3 tầng AI **chéo nhau** để giảm sai sót tối đa:
+
+```
+TẦNG 1 — KRONOS 🔦
+  ML model dự báo 3 khung H1/M15/M5 cùng lúc
+  M15 = khung CHÍNH (scalper), H1 nền, M5 xác nhận
+  Bỏ H4 (24h quá xa cho scalp)
+
+TẦNG 2 — TRADINGVIEW 👁️
+  26 indicator vote → STRONG_BUY / BUY / NEUTRAL / SELL / STRONG_SELL
+  Free API qua tradingview-ta
+
+TẦNG 3 — DEEPSEEK COUNCIL 🧙
+  8 agent + News + Sentiment + Memory + Risk debate
+  → BẢN TIN CHIẾN THUẬT CUỐI CÙNG (MUA/BÁN/ĐỨNG NGOÀI + SL/TP/Lot)
+```
+
+**Tính năng bảo vệ trader:**
+- ⏸️ **Gate skip M15 NEUTRAL** — Nếu Kronos M15 không rõ hướng, script DỪNG ngay, không gọi Council (tiết kiệm tiền + tránh vào lệnh xấu)
+- 🛡️ **Cap SL 10 pip** — Auto ép SL ≤ 10 pip ($10) cho scalp M15, chống plan kiểu Daily lệch khung
+- ⚠️ **Real account warning** — Nếu MT5 server có chữ "Real", script hỏi y/N trước khi chạy
+- 💰 **Position sizer** — Tính lot Cent theo balance + Kronos consensus tier (A+/B/C), risk 1%/lệnh, max 5%/ngày
+
+**Quy ước pip Cách A:** 1 pip XAUUSD = **$1 di chuyển** (giá $4670 → $4680 = 10 pip). SL bị cap tối đa 10 pip ($10) cho M15 scalp.
+
+Chạy:
 ```bash
+python ultimate_gold_hunter.py
+```
+
+Output mẫu:
+```
+🏹 BẢN TIN SĂN VÀNG — XAUUSDc 14/05/2026 06:00 ICT
+═══════════════════════════════════════════════════
+💰 Giá: $4,680.00  |  Balance: 11,400 USC  |  Max risk: $1.14
+
+🔮 KRONOS 3 KHUNG → BUY (3/3 đồng thuận, Tier A+)
+   H1  BUY  +0.30%  →  range=[4675, 4695]
+   M15 BUY  +0.35%  →  range=[4677, 4690]  ← khung chính
+   M5  BUY  +0.21%  →  range=[4679, 4685]
+
+🛡️ TRADINGVIEW M15 → STRONG_BUY (18 mua / 3 bán / 5 trung lập)
+
+🎯 PLAN:  MUA XAUUSDc @ $4,680  |  SL $4,673 (7 pip)  |  TP $4,690 (10 pip)
+💰 LOT:   0.05 Cent  |  Risk $1.14  |  Multiplier 1.2x (Tier A+)
+```
+
+---
+
+## 📦 Cài đặt nhanh
+
+### Yêu cầu
+- Windows 10/11 (Mac/Linux chạy được nhưng MT5 chính thức chỉ Windows)
+- Python 3.13 (qua Miniconda)
+- MT5 terminal đã đăng nhập demo hoặc real (khuyến nghị Exness Cent)
+- Thẻ Visa/Master quốc tế để nạp DeepSeek
+
+### Cài đặt
+```bash
+# 1. Clone repo
 git clone https://github.com/andyluu98/midas-agent.git
 cd midas-agent
-```
 
-Create a virtual environment:
-```bash
+# 2. Tạo môi trường conda
 conda create -n midas python=3.13
 conda activate midas
-```
 
-Install the package and its dependencies:
-```bash
+# 3. Cài tất cả dependencies
 pip install .
-```
 
-### Docker
+# 4. Cài MetaTrader5 package cho Python
+pip install MetaTrader5
 
-Run with Docker:
-```bash
-cp .env.example .env  # add your API keys
-docker compose run --rm tradingagents
-```
-
-For local models with Ollama:
-```bash
-docker compose --profile ollama run --rm tradingagents-ollama
-```
-
-### Required APIs
-
-Midas Agent supports multiple LLM providers. Set the API key for your chosen provider:
-
-```bash
-export OPENAI_API_KEY=...          # OpenAI (GPT)
-export GOOGLE_API_KEY=...          # Google (Gemini)
-export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
-export XAI_API_KEY=...             # xAI (Grok)
-export DEEPSEEK_API_KEY=...        # DeepSeek
-export DASHSCOPE_API_KEY=...       # Qwen (Alibaba DashScope)
-export ZHIPU_API_KEY=...           # GLM (Zhipu)
-export OPENROUTER_API_KEY=...      # OpenRouter
-export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
-```
-
-For enterprise providers (Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
-
-For local models, configure Ollama with `llm_provider: "ollama"` in your config.
-
-Alternatively, copy `.env.example` to `.env` and fill in your keys:
-```bash
+# 5. Cấu hình .env
 cp .env.example .env
+# Mở .env, dán DEEPSEEK_API_KEY và TAVILY_API_KEY (optional)
 ```
 
-### CLI Usage
-
-Launch the interactive CLI:
+### Verify cài đặt
 ```bash
-tradingagents          # installed command
-python -m cli.main     # alternative: run directly from source
-```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
-
-<p align="center">
-  <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-An interface will appear showing results as they load, letting you track each agent's progress as it runs.
-
-<p align="center">
-  <img src="assets/cli/cli_news.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-<p align="center">
-  <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-## Python Package Usage
-
-### Implementation Details
-
-Midas Agent is built on LangGraph for flexibility and modularity. It supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope), GLM (Zhipu), OpenRouter, Ollama (local), and Azure OpenAI (enterprise).
-
-### Quick Start
-
-Import the graph and run a propagation:
-
-```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-
-ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
-
-# forward propagate
-_, decision = ta.propagate("NVDA", "2026-01-15")
-print(decision)
+tradingagents --help
 ```
 
-You can adjust the default configuration to set your own LLMs, debate rounds, etc.:
+---
 
+## 🔑 API Keys
+
+### Bắt buộc
+- **DeepSeek API** — LLM chính (rẻ, tiếng Việt tốt). Đăng ký tại `platform.deepseek.com`. Top-up 10 USD ≈ 50 phiên.
+
+### Khuyến nghị
+- **Tavily API** — Search backend cho News/Sentiment/Fundamental analyst (chống AI bịa tin). Free 1000 search/tháng tại `tavily.com`.
+
+### Optional
+- **Alpha Vantage** — News fallback cho commodity
+- **Anthropic** — Fallback search backend
+- **OpenAI/Google/xAI/Qwen/GLM** — Provider thay thế DeepSeek
+
+Đặt vào `.env`:
+```bash
+DEEPSEEK_API_KEY=sk-...
+TAVILY_API_KEY=tvly-...           # optional but recommended
+ALPHA_VANTAGE_API_KEY=...         # optional
+```
+
+---
+
+## 🔍 Search Backend Tự Động
+
+Để 3 analyst (News/Sentiment/Fundamental) **không bịa tin** trên XAUUSD (Yahoo không có data commodity), Midas tự động chọn search backend theo chain:
+
+```
+1. Tavily API     (tốt nhất — TAVILY_API_KEY trong .env)
+2. Anthropic web_search native  (ANTHROPIC_API_KEY)
+3. Claude CLI subprocess         (command `claude` available)
+4. Gemini CLI subprocess         (command `gemini` available)
+5. None — analyst chỉ dùng training data (cảnh báo nhẹ)
+```
+
+Khi chạy, script in backend đang dùng:
+```
+🔍 Search backend: TAVILY
+```
+
+---
+
+## 🚀 Sử dụng
+
+### Cách 1: Script Gold Hunter (khuyến nghị cho trader vàng)
+```bash
+python ultimate_gold_hunter.py
+```
+
+### Cách 2: CLI tổng quát (cho ticker khác)
+```bash
+tradingagents
+# Interactive menu: chọn ticker, ngày, LLM provider, depth
+```
+
+### Cách 3: Python API
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, glm, openrouter, ollama, azure
-config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
+config["llm_provider"] = "deepseek"
+config["deep_think_llm"] = "deepseek-v4-pro"
+config["quick_think_llm"] = "deepseek-v4-flash"
+config["output_language"] = "Vietnamese"
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate("XAUUSD", "2026-05-14")
 print(decision)
 ```
 
-See `tradingagents/default_config.py` for all configuration options.
+---
 
-## Persistence and Recovery
+## ⚙️ 3 File Bạn Cần Biết
 
-Midas Agent persists two kinds of state across runs.
+| File | Mục đích |
+|------|----------|
+| **`.env`** | Giấu API key (DEEPSEEK_API_KEY, TAVILY_API_KEY...) |
+| **`tradingagents/default_config.py`** | Điều chỉnh LLM provider, số vòng debate, output language |
+| **`ultimate_gold_hunter.py`** | Script chạy chính cho trader vàng |
 
-### Decision log
+---
 
-The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, Midas Agent fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+## 💾 Persistence & Recovery
 
-Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
+### Memory tự học
+Mỗi phiên ghi vào `~/.tradingagents/memory/trading_memory.md`. Phiên sau cùng ticker → AI nhớ lỗi cũ, đưa bài học vào prompt → hệ thống tự khôn theo thời gian.
 
 ### Checkpoint resume
-
-Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. On a resume run you will see `Resuming from step N for <TICKER> on <date>` in the logs; on a new run you will see `Starting fresh`. Checkpoints are cleared automatically on successful completion.
-
-Per-ticker SQLite databases live at `~/.tradingagents/cache/checkpoints/<TICKER>.db` (override the base with `TRADINGAGENTS_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
-
+Mất điện giữa phiên? Bật `--checkpoint`:
 ```bash
-tradingagents analyze --checkpoint           # enable for this run
-tradingagents analyze --clear-checkpoints    # reset before running
+tradingagents analyze --checkpoint
 ```
+Lần chạy lại resume đúng chỗ — không mất tiền API.
 
-```python
-config = DEFAULT_CONFIG.copy()
-config["checkpoint_enabled"] = True
-ta = TradingAgentsGraph(config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
-```
+---
 
-## Contributing
+## 🛡️ Cảnh báo rủi ro
 
-Contributions are welcome — bug fixes, documentation improvements, new features, all helpful. Past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
+- ⚠️ **TÍN HIỆU THAM KHẢO** — không phải khuyến nghị đầu tư
+- ⚠️ **PAPER TRADE 2 tuần** trước khi chạy live
+- ⚠️ AI có thể sai, thị trường có thể black-swan
+- ⚠️ Quản lý vốn ≤ 1-2% mỗi lệnh, max 5%/ngày (code đã enforce)
+- ⚠️ KHÔNG đặt lệnh trực tiếp từ output — luôn xác nhận bằng mắt + biểu đồ
+- ⚠️ Khi MT5 dùng tài khoản REAL, script cảnh báo + hỏi y/N
+
+---
+
+## 🙏 Credit & License
+
+Midas Agent là **fork tuỳ biến** của [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) (MIT License) — chuyên hoá cho:
+
+- ✅ XAUUSD scalp M15 trên MT5 Exness
+- ✅ DeepSeek LLM (giá rẻ, tiếng Việt tốt) thay vì OpenAI o1
+- ✅ Kronos ML forecaster đa khung
+- ✅ TradingView free signal
+- ✅ Position sizer cho Cent account
+- ✅ Search backend auto-fallback (Tavily/Anthropic/CLI)
+- ✅ Gate skip M15 NEUTRAL + cap SL 10 pip
+- ✅ Real account warning
+- ✅ Output tiếng Việt
+
+Khung framework gốc (LangGraph multi-agent debate) thuộc TauricResearch. Mọi tuỳ biến trên đây thuộc Midas Agent contributors.
+
+---
+
+## 🤝 Contributing
+
+Welcome bug fix, doc improvement, feature mới. Khuyến nghị mở issue trước khi PR. Past contributions credited per release in [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
+## 📚 Khóa học CES — AI Agent for Trading: Zero to Hero
+
+7 video × 10 phút dạy trader VN không code dùng Midas từ đầu đến cuối:
+
+- V0: Kiến trúc Midas (lecture)
+- V1: Cài Python + Git + VS Code
+- V2: Clone repo + conda + pip install
+- V3: DeepSeek API + Tavily + .env
+- V4: MT5 + lấy data XAUUSD
+- V5: Chạy CLI 8 agent
+- V6: Gold Hunter realtime (đặt SL/TP/Lot)
+
+Đào tạo bởi **CES Global**.
