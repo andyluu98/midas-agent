@@ -14,7 +14,7 @@ from tradingagents.dataflows.mt5_provider import (
     get_ohlcv_dataframe, get_future_timestamps,
 )
 from tradingagents.dataflows.kronos_provider import multi_timeframe_forecast
-from tradingagents.dataflows.position_sizer import calculate_position
+from tradingagents.dataflows.brief_renderer import render_brief
 import MetaTrader5 as mt5
 
 # Nạp cấu hình
@@ -71,93 +71,34 @@ def run_ultimate_hunter(ticker="XAUUSD"):
 
     ta = TradingAgentsGraph(debug=False, config=config)
 
-    # Gợi ý SL/TP từ Kronos M15 forecast (range)
-    m15_fc = next((f for f in kronos_consensus.forecasts if f.timeframe == "M15" and not f.error), None)
-    sl_hint, tp_hint = "(không có)", "(không có)"
-    if m15_fc:
-        if kronos_consensus.direction == "BUY":
-            sl_hint = f"{m15_fc.predicted_low:.2f}"
-            tp_hint = f"{m15_fc.predicted_high:.2f}"
-        elif kronos_consensus.direction == "SELL":
-            sl_hint = f"{m15_fc.predicted_high:.2f}"
-            tp_hint = f"{m15_fc.predicted_low:.2f}"
+    # Hội đồng nhận context cô đọng: giá, Kronos snapshot, TradingView M15.
+    # Plan/SL/TP chi tiết do Portfolio Manager trong council tự sinh ra,
+    # rồi brief_renderer trích lại thành plan ngắn cho user.
+    context_msg = (
+        f"GIÁ EXNESS: {price} | VOLUME: {v_status} ({v_val}) | "
+        f"BALANCE: {acc_info['balance']} {acc_info['currency']}\n\n"
+        f"🔮 KRONOS:\n{kronos_consensus.summary()}\n\n"
+        f"🛡️ TRADINGVIEW M15:\n{tv_m15}\n\n"
+        f"Hãy đưa quyết định MUA/BÁN/ĐỨNG NGOÀI kèm Entry/SL/TP cụ thể "
+        f"(giá Exness), đối chiếu với Kronos forecast và bối cảnh tin tức."
+    )
 
-    context_msg = f"""
---- BÁO CÁO TỪ CHIẾN TRƯỜNG ---
-GIÁ EXNESS: {price} | VOLUME: {v_status} ({v_val})
-SỐ DƯ HANG: {acc_info['balance']} {acc_info['currency']}
-
-🔮 KRONOS DỰ BÁO ĐA KHUNG (đèn pha tương lai):
-{kronos_consensus.summary()}
-
-   SL gợi ý từ M15 forecast range: {sl_hint}
-   TP gợi ý từ M15 forecast range: {tp_hint}
-   Lot multiplier theo consensus: {kronos_consensus.lot_multiplier}x
-
-🛡️ TÍN HIỆU MẮT THẦN (TRADINGVIEW M15):
-{tv_m15}
-
-NHIỆM VỤ CỦA HỘI ĐỒNG:
-1. THẦN TÀI (News): Soi tin Fed, chính trị 1h qua, có sự kiện CPI/NFP/FOMC sắp ra không.
-2. GƯƠNG THẦN (Sentiment): Soi tâm lý đám đông Reddit/Twitter.
-3. NHẬT KÝ (Memory): Nhắc lại các lỗi lầm cũ khi trade vàng.
-4. THỦ KHO (Risk): Lot Cent đã tính tự động ở Tier 3 — chỉ confirm nếu phù hợp với risk profile.
-
-YÊU CẦU QUYẾT ĐỊNH CUỐI CÙNG: MUA/BÁN/ĐỨNG NGOÀI?
-- Nếu MUA/BÁN: kèm Entry, SL, TP chuẩn giá Exness, đối chiếu với Kronos forecast.
-- Nếu ĐỨNG NGOÀI: nêu lý do (Kronos conflict / tin xấu / tâm lý ngược).
-"""
-    
     trade_date = datetime.now().strftime("%Y-%m-%d")
-    
-    print("\n" + "💎"*20)
-    print("BẢN TIN CHIẾN THUẬT CUỐI CÙNG")
-    print("💎"*20)
-    print(f"\n{context_msg}")
-    print("-" * 30)
-    
-    final_state, decision = ta.propagate(ticker, trade_date)
+    final_state, _ = ta.propagate(ticker, trade_date)
 
-    # In các báo cáo phân tích cho người dùng nhìn trực tiếp.
-    # Trước đây các báo cáo chỉ được lưu vào ~/.tradingagents/logs/...json
-    # nên người chạy không biết tin tức và lập luận đầy đủ của hội đồng.
-    def _section(title: str, body: str) -> None:
-        if not body:
-            return
-        print(f"\n\n{'─' * 60}\n📰 {title}\n{'─' * 60}")
-        print(body)
-
-    _section("NEWS REPORT (tin tức vĩ mô + ngành vàng)", final_state.get("news_report", ""))
-    _section("SENTIMENT REPORT (tâm lý thị trường)", final_state.get("sentiment_report", ""))
-    _section("FUNDAMENTALS REPORT (yếu tố cơ bản)", final_state.get("fundamentals_report", ""))
-    _section("INVESTMENT PLAN (Research Manager)", final_state.get("investment_plan", ""))
-    _section("FINAL TRADE DECISION (Portfolio Manager)", final_state.get("final_trade_decision", ""))
-
-    print(f"\n\n{'═' * 60}\n🎯 SIGNAL TÓM TẮT (đã xử lý)\n{'═' * 60}")
-    print(decision)
-
-    # TẦNG 3: THỦ KHO TÍNH LOT
-    print("\n" + "💰" * 20)
-    print("TẦNG 3 — THỦ KHO TÍNH LOT")
-    print("💰" * 20)
-    if m15_fc and kronos_consensus.direction in ("BUY", "SELL"):
-        if kronos_consensus.direction == "BUY":
-            sl_p, tp_p = m15_fc.predicted_low, m15_fc.predicted_high
-        else:
-            sl_p, tp_p = m15_fc.predicted_high, m15_fc.predicted_low
-        pos = calculate_position(
-            balance_usc=float(acc_info["balance"]),
-            direction=kronos_consensus.direction,
-            lot_multiplier=kronos_consensus.lot_multiplier,
-            sl_price=sl_p,
-            tp_price=tp_p,
-            entry_price=price,
-        )
-        print(pos.summary())
-    else:
-        print("❌ NO TRADE — Kronos không cho tín hiệu rõ ràng, Thủ kho không vào lệnh.")
-
-    print("\n" + "="*60)
+    # Bản tin cô đọng ~80 dòng cho user đọc trên Claude Code / terminal.
+    # 5 báo cáo dài đầy đủ vẫn được TradingAgentsGraph tự lưu vào
+    # ~/.tradingagents/logs/<TICKER>/...json cho ai cần đào sâu.
+    brief = render_brief(
+        ticker=ticker,
+        mt5_info=mt5_info,
+        acc_info=acc_info,
+        kronos=kronos_consensus,
+        tv_m15=tv_m15,
+        final_state=final_state,
+        llm=ta.quick_thinking_llm,
+    )
+    print("\n" + brief + "\n")
 
 if __name__ == "__main__":
     run_ultimate_hunter("XAUUSD")
