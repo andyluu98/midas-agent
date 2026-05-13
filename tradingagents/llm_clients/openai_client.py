@@ -67,15 +67,16 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
        ``tradingagents/agents/utils/structured.py``).
     """
 
-    # Models that reject tool_choice. ``deepseek-v4-pro`` is the V4 flagship
-    # thinking model and DeepSeek routes it to the reasoner endpoint
-    # server-side, so the API still returns
-    # ``deepseek-reasoner does not support this tool_choice`` even when the
-    # client model name is v4-pro. ``deepseek-v4-flash`` supports tool_choice
-    # normally.
+    # Models that reject tool_choice. Both V4 models (``deepseek-v4-pro``
+    # and ``deepseek-v4-flash``) are routed to the reasoner endpoint
+    # server-side, so the API returns ``deepseek-reasoner does not support
+    # this tool_choice`` regardless of which V4 model the client sent.
+    # Pre-empting at ``with_structured_output`` time avoids a wasted API
+    # call per agent invocation.
     _NO_TOOL_CHOICE_MODELS = frozenset({
         "deepseek-reasoner",
         "deepseek-v4-pro",
+        "deepseek-v4-flash",
     })
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):

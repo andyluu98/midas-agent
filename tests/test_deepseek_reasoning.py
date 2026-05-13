@@ -135,22 +135,23 @@ class TestDeepSeekReasonerStructuredOutput:
         with pytest.raises(NotImplementedError):
             client.with_structured_output(_Sample)
 
-    def test_with_structured_output_works_for_v4(self):
-        """V4 models (non-reasoner) accept tool_choice; structured output works."""
-        client = DeepSeekChatOpenAI(
-            model="deepseek-v4-flash",
-            api_key="placeholder",
-            base_url="https://api.deepseek.com",
-        )
+    def test_with_structured_output_raises_for_v4_models(self):
+        """V4 models (pro and flash) are routed to the reasoner endpoint
+        server-side for tool calls; binding is pre-empted so the agent
+        factories fall back to free-text without a wasted API call."""
         from pydantic import BaseModel
 
         class _Sample(BaseModel):
             answer: str
 
-        # Should return a Runnable, not raise. (The actual API call would
-        # require a real key; we only assert binding succeeds.)
-        wrapped = client.with_structured_output(_Sample)
-        assert wrapped is not None
+        for model in ("deepseek-v4-pro", "deepseek-v4-flash"):
+            client = DeepSeekChatOpenAI(
+                model=model,
+                api_key="placeholder",
+                base_url="https://api.deepseek.com",
+            )
+            with pytest.raises(NotImplementedError):
+                client.with_structured_output(_Sample)
 
 
 # ---------------------------------------------------------------------------
