@@ -7,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_insider_transactions,
     get_language_instruction,
+    search_web,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -21,12 +22,20 @@ def create_fundamentals_analyst(llm):
             get_balance_sheet,
             get_cashflow,
             get_income_statement,
+            search_web,
         ]
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
+            "You are a fundamentals researcher. For commodity/forex like XAUUSD where balance sheets do NOT apply, "
+            "ALWAYS use search_web tool to gather macro fundamentals: "
+            "real interest rates, US 10Y yield, CPI, Fed policy stance, USD index, gold ETF (GLD) holdings, "
+            "central bank gold reserves, mining production trends. "
+            "DO NOT invent numbers — cite specific data from search results with sources and dates. "
+            "Useful queries: 'US 10Y treasury yield latest', 'CPI inflation rate latest month', "
+            "'Fed funds rate decision latest', 'GLD ETF holdings change weekly', 'DXY dollar index current'. "
+            "For stock tickers use get_fundamentals/get_balance_sheet etc. "
+            "Provide specific, actionable insights with supporting evidence."
+            + " Make sure to append a Markdown table at the end of the report to organize key points."
             + get_language_instruction(),
         )
 
