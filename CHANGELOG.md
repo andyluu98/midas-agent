@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to TradingAgents are documented here.
+All notable changes to Midas Agent are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -209,8 +209,8 @@ production-ready surfaces.
 - **Post-analysis report saving** — the framework writes per-section markdown
   files (analyst reports, debate transcripts, final decision) when a run
   completes.
-- **Announcements panel** — fetches updates from `api.tauric.ai/v1/announcements`
-  for the CLI welcome screen.
+- **Announcements panel** — fetches updates from a configurable announcements
+  endpoint for the CLI welcome screen.
 - **Tool fallbacks** so a single vendor outage does not stop the pipeline.
 
 ### Changed
@@ -251,16 +251,16 @@ PRs from late 2025 also landed here.
 
 ### Added
 
-- **Initial public release** of the TradingAgents multi-agent trading
+- **Initial public release** of the multi-agent trading
   framework: market / sentiment / news / fundamentals analysts; bull and bear
   researchers; trader; aggressive, conservative, and neutral risk debaters;
   portfolio manager. LangGraph orchestration, yfinance data, per-agent
   BM25 memory, single-provider OpenAI integration, interactive CLI.
 
-[0.2.4]: https://github.com/TauricResearch/TradingAgents/compare/v0.2.3...v0.2.4
-[0.2.3]: https://github.com/TauricResearch/TradingAgents/compare/v0.2.2...v0.2.3
-[0.2.2]: https://github.com/TauricResearch/TradingAgents/compare/v0.2.1...v0.2.2
-[0.2.1]: https://github.com/TauricResearch/TradingAgents/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/TauricResearch/TradingAgents/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/TauricResearch/TradingAgents/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/TauricResearch/TradingAgents/releases/tag/v0.1.0
+[0.2.4]: https://github.com/andyluu98/midas-agent/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/andyluu98/midas-agent/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/andyluu98/midas-agent/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/andyluu98/midas-agent/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/andyluu98/midas-agent/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/andyluu98/midas-agent/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/andyluu98/midas-agent/releases/tag/v0.1.0

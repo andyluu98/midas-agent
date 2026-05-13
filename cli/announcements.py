@@ -12,6 +12,9 @@ def fetch_announcements(url: str = None, timeout: float = None) -> dict:
     timeout = timeout or CLI_CONFIG["announcements_timeout"]
     fallback = CLI_CONFIG["announcements_fallback"]
 
+    if not endpoint:
+        return {"announcements": [fallback], "require_attention": False}
+
     try:
         response = requests.get(endpoint, timeout=timeout)
         response.raise_for_status()
