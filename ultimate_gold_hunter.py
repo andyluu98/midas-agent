@@ -15,17 +15,53 @@ from tradingagents.dataflows.mt5_provider import (
 )
 from tradingagents.dataflows.kronos_provider import multi_timeframe_forecast
 from tradingagents.dataflows.brief_renderer import render_brief
+from tradingagents.dataflows.search_provider import print_active_backend
 import MetaTrader5 as mt5
 
 # Nạp cấu hình
 load_dotenv()
 
-def run_ultimate_hunter(ticker="XAUUSD"):
-    print("="*60)
-    print("🚀 ULTIMATE GOLD HUNTER V4 — 3 TẦNG AI (Kronos + Watcher + DeepSeek) 🚀")
-    print("="*60)
 
-    # 1. LẤY DỮ LIỆU TỪ MT5 (EXNESS)
+def _confirm_real_account(server: str) -> bool:
+    """Cảnh báo + xác nhận khi MT5 server là tài khoản LIVE/Real.
+    Trả về True nếu user xác nhận tiếp tục, False nếu huỷ.
+    Script này chỉ ĐỌC data nhưng nếu sau này thêm auto-trade sẽ vào lệnh thật.
+    """
+    if "real" not in server.lower():
+        return True  # Demo/Trial — không cần xác nhận
+    print()
+    print("⚠️ " * 20)
+    print(f"⚠️  CẢNH BÁO: TÀI KHOẢN LIVE — Server: {server}")
+    print("⚠️  Script hiện CHỈ ĐỌC data, không gửi lệnh.")
+    print("⚠️  Nhưng nếu tương lai thêm auto-trade sẽ vào LỆNH THẬT.")
+    print("⚠️ " * 20)
+    try:
+        ans = input("\nTiếp tục với tài khoản REAL? (y/N): ").strip().lower()
+    except EOFError:
+        ans = ""
+    if ans not in ("y", "yes"):
+        print("❌ Đã huỷ — chuyển sang demo trước khi chạy.")
+        return False
+    print("✅ Đã xác nhận. Tiếp tục với tài khoản REAL.\n")
+    return True
+
+
+def _get_m15_forecast(kronos_consensus):
+    """Lấy forecast Kronos M15 nếu có và không error."""
+    return next(
+        (f for f in kronos_consensus.forecasts
+         if f.timeframe == "M15" and not f.error),
+        None,
+    )
+
+
+def run_ultimate_hunter(ticker="XAUUSD"):
+    print("=" * 60)
+    print("🚀 ULTIMATE GOLD HUNTER V5 — Scalp M15 (Kronos + TV + DeepSeek) 🚀")
+    print("=" * 60)
+    print_active_backend()  # In search backend đang dùng
+
+    # 1. LẤY DỮ LIỆU TỪ MT5 (EXNESS) + KIỂM TRA LOẠI TÀI KHOẢN
     print("\n[1/4] Đang kết nối MT5 Exness...")
     mt5_info = get_mt5_data(ticker, mt5.TIMEFRAME_M15, 100)
     acc_info = get_account_summary()
@@ -34,27 +70,44 @@ def run_ultimate_hunter(ticker="XAUUSD"):
         print(f"❌ Lỗi MT5: {mt5_info['error']}")
         return
 
-    real_symbol = mt5_info['symbol']
-    price = mt5_info['current_bid']
-    v_val = mt5_info['last_volume']
-    v_status = mt5_info['volume_status']
+    # Lấy server name từ account_info để cảnh báo Real account
+    acc_full = mt5.account_info()
+    server = acc_full.server if acc_full else "UNKNOWN"
+    if not _confirm_real_account(server):
+        return
+
+    real_symbol = mt5_info["symbol"]
+    price = mt5_info["current_bid"]
+    v_val = mt5_info["last_volume"]
+    v_status = mt5_info["volume_status"]
     print(f"✅ Đã kết nối. Giá Exness cho {real_symbol}: {price}")
     print(f"📊 Volume: {v_val} ({v_status}) | 💰 Balance: {acc_info['balance']} {acc_info['currency']}")
 
-    # 2. KRONOS ĐA KHUNG FORECAST
-    print("\n[2/4] 🔮 Đèn pha Kronos đang dự báo H4/H1/M15/M5...")
+    # 2. KRONOS ĐA KHUNG FORECAST (H1 + M15 + M5 — bỏ H4 quá xa cho scalp M15)
+    print("\n[2/4] 🔮 Đèn pha Kronos đang dự báo H1/M15/M5...")
     kronos_consensus = multi_timeframe_forecast(
         fetch_ohlcv=get_ohlcv_dataframe,
         fetch_future_ts=get_future_timestamps,
     )
     print(kronos_consensus.summary())
 
+    # GATE: Skip phiên nếu Kronos M15 NEUTRAL (không rõ hướng → không scalp)
+    m15_fc = _get_m15_forecast(kronos_consensus)
+    if m15_fc is None or m15_fc.direction == "NEUTRAL":
+        m15_status = "không có data" if m15_fc is None else f"NEUTRAL (move {m15_fc.move_pct*100:+.2f}%)"
+        print()
+        print("⏸️  " * 20)
+        print(f"⏸️  NO TRADE — Kronos M15 chưa rõ hướng: {m15_status}")
+        print("⏸️  Scalper M15 cần khung chính có tín hiệu rõ. Bỏ qua phiên này.")
+        print("⏸️  Chờ phiên sau hoặc chuyển sang khung H1/H4 nếu muốn swing.")
+        print("⏸️  " * 20)
+        return
+
     # 3. LẤY TÍN HIỆU REAL-TIME TỪ TRADINGVIEW
     print("\n[3/4] 🛡️ Mắt thần TradingView (M5, M15)...")
-    tv_m5 = get_tradingview_analysis_report(ticker, "5m")
     tv_m15 = get_tradingview_analysis_report(ticker, "15m")
 
-    # 4. GỌI GIÀ LÀNG DEEPSEEK VÀ CÁC THẦN BINH
+    # 4. GỌI HỘI ĐỒNG DEEPSEEK — ĐÃ CÓ TÍN HIỆU M15 RÕ
     print("\n[4/4] 🧙 Triệu tập Hội đồng DeepSeek (News, Sentiment, Risk)...")
     config = DEFAULT_CONFIG.copy()
     config["llm_provider"] = "deepseek"
@@ -62,8 +115,6 @@ def run_ultimate_hunter(ticker="XAUUSD"):
     config["quick_think_llm"] = "deepseek-v4-flash"
     config["output_language"] = "Vietnamese"
     config["max_debate_rounds"] = 2
-    # Alpha Vantage có news endpoint cho commodity; yfinance không có news cho
-    # XAUUSD spot, dẫn đến News Analyst phải scrape rất chật vật.
     config["data_vendors"] = {
         **config.get("data_vendors", {}),
         "news_data": "alpha_vantage",
@@ -71,24 +122,42 @@ def run_ultimate_hunter(ticker="XAUUSD"):
 
     ta = TradingAgentsGraph(debug=False, config=config)
 
-    # Hội đồng nhận context cô đọng: giá, Kronos snapshot, TradingView M15.
-    # Plan/SL/TP chi tiết do Portfolio Manager trong council tự sinh ra,
-    # rồi brief_renderer trích lại thành plan ngắn cho user.
+    # Ép Council BÁM Kronos M15: SL/TP phải trong [m15.predicted_low, predicted_high]
+    # Cap SL tối đa 10 pip ($10 di chuyển) — chống Council vẽ plan kiểu Daily.
+    m15_range_low = m15_fc.predicted_low
+    m15_range_high = m15_fc.predicted_high
+    direction_hint = m15_fc.direction  # BUY hoặc SELL (đã filter NEUTRAL ở trên)
+
     context_msg = (
-        f"GIÁ EXNESS: {price} | VOLUME: {v_status} ({v_val}) | "
-        f"BALANCE: {acc_info['balance']} {acc_info['currency']}\n\n"
-        f"🔮 KRONOS:\n{kronos_consensus.summary()}\n\n"
+        f"BỐI CẢNH SCALP M15 (XAUUSDc):\n"
+        f"  Giá Exness: ${price:.2f} | Spread: {mt5_info['spread']:.2f} | "
+        f"Volume: {v_status} ({v_val})\n"
+        f"  Balance: {acc_info['balance']} {acc_info['currency']}\n\n"
+        f"🔮 KRONOS CONSENSUS: {kronos_consensus.direction} "
+        f"(Tier {kronos_consensus.confidence_tier})\n"
+        f"{kronos_consensus.summary()}\n\n"
         f"🛡️ TRADINGVIEW M15:\n{tv_m15}\n\n"
-        f"Hãy đưa quyết định MUA/BÁN/ĐỨNG NGOÀI kèm Entry/SL/TP cụ thể "
-        f"(giá Exness), đối chiếu với Kronos forecast và bối cảnh tin tức."
+        f"════ RÀNG BUỘC NGHIÊM (BẮT BUỘC TUÂN) ════\n"
+        f"1. ĐÂY LÀ SCALP M15 — KHÔNG dùng level SMA50/Daily/support tuần.\n"
+        f"2. Hướng đi Kronos M15 = {direction_hint}. "
+        f"Đề xuất MUA/BÁN PHẢI khớp hoặc lý giải vì sao ngược.\n"
+        f"3. Entry = ${price:.2f} (giá hiện tại) hoặc gần range Kronos M15.\n"
+        f"4. SL PHẢI nằm trong range Kronos M15 [{m15_range_low:.2f}, "
+        f"{m15_range_high:.2f}] và KHÔNG xa quá 10 pip = $10 di chuyển.\n"
+        f"5. TP PHẢI nằm trong range Kronos M15 (phía đối diện SL).\n"
+        f"6. QUY ƯỚC PIP: 1 pip XAUUSD = $1 di chuyển "
+        f"(giá $4670 → $4680 = 10 pip).\n"
+        f"7. R/R tối thiểu 1:1, mục tiêu 1:1.5-2.\n"
+        f"8. Nếu xung đột giữa Kronos M15 và TradingView M15: "
+        f"ưu tiên KHÔNG VÀO LỆNH thay vì cưỡng ép.\n"
+        f"════════════════════════════════════════════\n\n"
+        f"Đưa quyết định MUA/BÁN/ĐỨNG NGOÀI kèm Entry/SL/TP cụ thể (giá Exness)."
     )
 
     trade_date = datetime.now().strftime("%Y-%m-%d")
     final_state, _ = ta.propagate(ticker, trade_date)
 
-    # Bản tin cô đọng ~80 dòng cho user đọc trên Claude Code / terminal.
-    # 5 báo cáo dài đầy đủ vẫn được TradingAgentsGraph tự lưu vào
-    # ~/.tradingagents/logs/<TICKER>/...json cho ai cần đào sâu.
+    # Bản tin cô đọng ~80 dòng cho user
     brief = render_brief(
         ticker=ticker,
         mt5_info=mt5_info,
@@ -99,6 +168,7 @@ def run_ultimate_hunter(ticker="XAUUSD"):
         llm=ta.quick_thinking_llm,
     )
     print("\n" + brief + "\n")
+
 
 if __name__ == "__main__":
     run_ultimate_hunter("XAUUSD")

@@ -38,8 +38,11 @@ QUY TẮC NGHIÊM:
   tự nhiên cho trader đọc, không phải báo cáo kỹ thuật khô cứng.
 - Phe MUA / phe BÁN: 3-4 ý mỗi phe, ngắn, không thuật ngữ rườm rà.
 - Plan giao dịch: trích chính xác các con số Entry/SL/TP từ Portfolio
-  Manager. 1 pip XAUUSD = 0.01 (giá 4490 → 4350 cách 14000 pip).
-  Tính R/R = |TP - Entry| / |Entry - SL|.
+  Manager. QUY ƯỚC PIP CÁCH A: 1 pip XAUUSD = $1 di chuyển
+  (giá $4670 → $4680 = 10 pip). Tính R/R = |TP - Entry| / |Entry - SL|.
+- SL của plan PHẢI nằm trong range Kronos M15 và KHÔNG xa quá 10 pip ($10).
+  Nếu PM đề xuất SL xa hơn → mô tả là "swing-style không phù hợp M15"
+  và đề xuất lại SL ngắn hơn theo range Kronos M15.
 - Nếu Kronos NO_TRADE: HÀNH ĐỘNG NGAY = "❌ KHÔNG MỞ LỆNH MỚI" và liệt
   kê 2-3 kịch bản chờ đợi (giá nào thì vào mua/bán).
 - Không tự bịa số: chỉ dùng giá xuất hiện trong Portfolio Manager report.

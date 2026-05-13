@@ -16,13 +16,15 @@ from typing import Optional
 
 import pandas as pd
 
-# Cấu hình mặc định (B. Balanced) — sửa được qua override khi gọi
+# Cấu hình mặc định cho scalp M15 — bỏ H4 (quá xa, 24h tới không liên quan
+# scalper M15 chỉ giữ lệnh 1-4 giờ). Giữ H1 làm nền, M15 chính, M5 xác nhận.
+# Threshold M15 nâng lên 0.3% (từ 0.1%) để giảm noise — XAUUSD ~$4700,
+# 0.3% = $14 ≈ 1 nến M15 trung bình, đủ rõ hướng đi.
 DEFAULT_TF_CONFIG = {
     # tf_label: (lookback bars, pred_len bars, direction threshold %)
-    "H4":  (300, 6,  0.005),  # 24h tới, threshold ±0.5%
-    "H1":  (400, 12, 0.003),  # 12h tới, threshold ±0.3%
-    "M15": (400, 16, 0.001),  # 4h tới, threshold ±0.1%
-    "M5":  (400, 12, 0.0005), # 1h tới, threshold ±0.05%  (REMOVABLE)
+    "H1":  (400, 12, 0.004),  # 12h tới, threshold ±0.4% — nền context
+    "M15": (400, 16, 0.003),  # 4h tới, threshold ±0.3% — KHUNG CHÍNH (scalp)
+    "M5":  (400, 12, 0.0015), # 1h tới, threshold ±0.15% — xác nhận entry
 }
 
 MODEL_NAME = "NeoQuasar/Kronos-small"

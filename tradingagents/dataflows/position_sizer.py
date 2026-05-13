@@ -11,16 +11,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Profile B (Balanced)
+# Profile B (Balanced) — Scalp M15 cho XAUUSD
 RISK_PER_TRADE = 0.01          # 1% balance
 MAX_TRADES_PER_DAY = 5
 MAX_DAILY_RISK = 0.05          # 5%
 
-# Pip value cho XAUUSD trên 1 standard lot — $1 di chuyển = $100 (vì 1 lot = 100 oz)
-# Trên Cent account: 1 Cent lot = 1 oz, $1 di chuyển = $1 → pip value $0.01/pip standard, $0.0001/pip Cent
-# Quy ước pip XAUUSD: 1 pip = 0.01 (giá $3500.05 → 3500.06 = +1 pip)
-PIP_VALUE_PER_STANDARD_LOT = 1.0       # $1 / pip / 1 standard lot XAUUSD
-CENT_TO_STANDARD = 0.01                # 1 lot Cent = 0.01 standard
+# Quy ước PIP CÁCH A — 1 pip XAUUSD = $1.00 di chuyển
+# (giá $4670 → $4671 = +1 pip, giá $4670 → $4680 = +10 pip)
+# Đây là convention nhiều trader VN dùng, đồng nhất với cách user đọc chart.
+PIP_SIZE_USD = 1.0             # 1 pip = $1 di chuyển
+
+# Pip value: 1 lot Standard XAUUSD = 100 oz, $1 di chuyển = $100
+# Trên Cent account: 1 lot Cent = 1 oz, $1 di chuyển = $1
+PIP_VALUE_PER_STANDARD_LOT = 100.0  # $100 / pip / 1 lot standard (vì 1 pip = $1)
+CENT_TO_STANDARD = 0.01             # 1 lot Cent = 0.01 standard
+
+# CAP SL cho M15 scalp — không cho SL xa hơn 10 pip ($10 di chuyển)
+# Bảo vệ user khỏi plan Daily/Swing lệch khung
+MAX_SL_PIPS_M15 = 10
+MIN_SL_PIPS = 3                # SL quá gần (<3 pip) thường bị spread/noise quét
 
 
 @dataclass
@@ -36,10 +45,12 @@ class PositionSize:
     def summary(self) -> str:
         if self.direction == "NO_TRADE":
             return f"❌ NO TRADE — {self.reason}"
+        # Pip Cách A: 1 pip = $1. SL 10 pip = $10 di chuyển.
         return (
             f"💰 {self.direction} | Lot Cent: {self.lot_cent:.2f} "
             f"(={self.lot_standard:.4f} std) | Risk: ${self.risk_usd:.2f} | "
-            f"SL: {self.sl_pips:.0f}p | TP: {self.tp_pips:.0f}p\n"
+            f"SL: {self.sl_pips:.0f} pip (${self.sl_pips:.0f}) | "
+            f"TP: {self.tp_pips:.0f} pip (${self.tp_pips:.0f})\n"
             f"   Lý do: {self.reason}"
         )
 
@@ -89,15 +100,29 @@ def calculate_position(
             reason=f"Đã đạt cap {MAX_DAILY_RISK*100:.0f}% rủi ro/ngày"
         )
 
-    # SL/TP pips (1 pip XAUUSD = 0.01)
-    sl_pips = abs(entry_price - sl_price) / 0.01
-    tp_pips = abs(tp_price - entry_price) / 0.01
+    # SL/TP pips theo CÁCH A: 1 pip XAUUSD = $1 di chuyển
+    sl_pips = abs(entry_price - sl_price) / PIP_SIZE_USD
+    tp_pips = abs(tp_price - entry_price) / PIP_SIZE_USD
 
-    if sl_pips < 5:
+    if sl_pips < MIN_SL_PIPS:
         return PositionSize(
             "NO_TRADE", 0, 0, 0, 0, 0,
-            reason=f"SL quá gần ({sl_pips:.1f} pips < 5) — risk-reward kém"
+            reason=f"SL quá gần ({sl_pips:.1f} pip < {MIN_SL_PIPS}) — bị spread/noise quét"
         )
+
+    # CAP SL cho M15 scalp — nếu Council/Plan đặt SL xa hơn 10 pip,
+    # ép về 10 pip (tránh swing-style SL trên khung M15).
+    if sl_pips > MAX_SL_PIPS_M15:
+        original_sl_pips = sl_pips
+        sl_pips = MAX_SL_PIPS_M15
+        # Tính lại sl_price theo direction
+        if direction == "BUY":
+            sl_price = entry_price - MAX_SL_PIPS_M15 * PIP_SIZE_USD
+        else:
+            sl_price = entry_price + MAX_SL_PIPS_M15 * PIP_SIZE_USD
+        cap_note = f" | SL cap {original_sl_pips:.0f}p → {MAX_SL_PIPS_M15}p (M15 scalp)"
+    else:
+        cap_note = ""
 
     # Risk amount USD
     risk_pct = RISK_PER_TRADE * lot_multiplier
@@ -126,5 +151,5 @@ def calculate_position(
         risk_usd=risk_usd,
         sl_pips=sl_pips,
         tp_pips=tp_pips,
-        reason=f"Multiplier={lot_multiplier}x, risk={risk_pct*100:.2f}%, RR={tp_pips/sl_pips:.2f}",
+        reason=f"Multiplier={lot_multiplier}x, risk={risk_pct*100:.2f}%, RR={tp_pips/sl_pips:.2f}{cap_note}",
     )
