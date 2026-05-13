@@ -262,19 +262,3 @@ Khung framework gốc (LangGraph multi-agent debate) thuộc TauricResearch. M�
 ## 🤝 Contributing
 
 Welcome bug fix, doc improvement, feature mới. Khuyến nghị mở issue trước khi PR. Past contributions credited per release in [`CHANGELOG.md`](CHANGELOG.md).
-
----
-
-## 📚 Khóa học CES — AI Agent for Trading: Zero to Hero
-
-7 video × 10 phút dạy trader VN không code dùng Midas từ đầu đến cuối:
-
-- V0: Kiến trúc Midas (lecture)
-- V1: Cài Python + Git + VS Code
-- V2: Clone repo + conda + pip install
-- V3: DeepSeek API + Tavily + .env
-- V4: MT5 + lấy data XAUUSD
-- V5: Chạy CLI 8 agent
-- V6: Gold Hunter realtime (đặt SL/TP/Lot)
-
-Đào tạo bởi **CES Global**.
