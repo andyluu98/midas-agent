@@ -59,6 +59,7 @@ def run_ultimate_hunter(ticker="XAUUSD"):
     config = DEFAULT_CONFIG.copy()
     config["llm_provider"] = "deepseek"
     config["deep_think_llm"] = "deepseek-v4-pro"
+    config["quick_think_llm"] = "deepseek-v4-flash"
     config["output_language"] = "Vietnamese"
     config["max_debate_rounds"] = 2
 

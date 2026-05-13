@@ -60,11 +60,23 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
        fails with HTTP 400. ``_create_chat_result`` captures the field on
        receive and ``_get_request_payload`` re-attaches it on send.
 
-    2. **deepseek-reasoner has no tool_choice.** Structured output via
-       function-calling is unavailable, so we raise NotImplementedError
-       and let the agent factories fall back to free-text generation
-       (see ``tradingagents/agents/utils/structured.py``).
+    2. **Reasoner-class models have no tool_choice.** ``deepseek-reasoner``
+       and ``deepseek-v4-pro`` (server-side aliased to the reasoner) reject
+       function-calling. We raise NotImplementedError so the agent
+       factories fall back to free-text generation (see
+       ``tradingagents/agents/utils/structured.py``).
     """
+
+    # Models that reject tool_choice. ``deepseek-v4-pro`` is the V4 flagship
+    # thinking model and DeepSeek routes it to the reasoner endpoint
+    # server-side, so the API still returns
+    # ``deepseek-reasoner does not support this tool_choice`` even when the
+    # client model name is v4-pro. ``deepseek-v4-flash`` supports tool_choice
+    # normally.
+    _NO_TOOL_CHOICE_MODELS = frozenset({
+        "deepseek-reasoner",
+        "deepseek-v4-pro",
+    })
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
@@ -95,9 +107,9 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
         return chat_result
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
-        if self.model_name == "deepseek-reasoner":
+        if self.model_name in self._NO_TOOL_CHOICE_MODELS:
             raise NotImplementedError(
-                "deepseek-reasoner does not support tool_choice; structured "
+                f"{self.model_name} does not support tool_choice; structured "
                 "output is unavailable. Agent factories fall back to "
                 "free-text generation automatically."
             )

@@ -1,6 +1,8 @@
 from typing import Annotated
+from langchain_core.tools import tool
 from tradingagents.dataflows.interface import route_to_vendor
 
+@tool
 def get_realtime_analysis(
     symbol: Annotated[str, "ticker symbol (e.g., NVDA, XAUUSD)"],
     interval: Annotated[str, "timeframe: 5m, 15m, 1h, 1d"] = "1h"

@@ -8,7 +8,7 @@ def get_mt5_data(symbol="XAUUSD", timeframe=mt5.TIMEFRAME_M15, n_bars=100):
         return {"error": f"Khởi tạo thất bại: {mt5.last_error()}"}
     
     # Tìm mã chuẩn trên sàn
-    symbols_to_try = [symbol, symbol+"m", symbol+".e", "GOLD"]
+    symbols_to_try = [symbol, symbol+"c", symbol+"m", symbol+".e", "GOLD"]
     target_symbol = None
     for s in symbols_to_try:
         if mt5.symbol_select(s, True):
@@ -74,7 +74,7 @@ def get_ohlcv_dataframe(tf_label: str, lookback: int, symbol: str = "XAUUSD") ->
     tf_enum, _ = TF_MAP[tf_label]
 
     # Tìm symbol thực tế trên sàn
-    symbols_to_try = [symbol, symbol + "m", symbol + ".e", "GOLD"]
+    symbols_to_try = [symbol, symbol + "c", symbol + "m", symbol + ".e", "GOLD"]
     target = next((s for s in symbols_to_try if mt5.symbol_select(s, True)), None)
     if not target:
         return pd.DataFrame()

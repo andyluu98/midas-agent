@@ -63,16 +63,22 @@ def get_tradingview_analysis_report(
         report += f"- BÁN: {summary['SELL']}\n"
         report += f"- TRUNG LẬP: {summary['NEUTRAL']}\n\n"
         
+        def fmt(key: str, decimals: int = 2) -> str:
+            v = indicators.get(key)
+            if isinstance(v, (int, float)):
+                return f"{v:.{decimals}f}"
+            return "N/A"
+
         report += "### CHỈ BÁO QUAN TRỌNG:\n"
-        report += f"- RSI (14): {indicators.get('RSI', 'N/A'):.2f}\n"
-        report += f"- MACD Level: {indicators.get('MACD.macd', 'N/A'):.2f}\n"
-        report += f"- ADX (20): {indicators.get('ADX', 'N/A'):.2f}\n"
-        report += f"- Bollinger Upper: {indicators.get('BB.upper', 'N/A'):.2f}\n"
-        report += f"- Bollinger Lower: {indicators.get('BB.lower', 'N/A'):.2f}\n"
+        report += f"- RSI (14): {fmt('RSI')}\n"
+        report += f"- MACD Level: {fmt('MACD.macd')}\n"
+        report += f"- ADX (20): {fmt('ADX')}\n"
+        report += f"- Bollinger Upper: {fmt('BB.upper')}\n"
+        report += f"- Bollinger Lower: {fmt('BB.lower')}\n"
         report += f"- VOLUME: {indicators.get('volume', 'N/A')}\n"
-        report += f"- MFI (Money Flow): {indicators.get('MFI', 'N/A'):.2f}\n"
-        report += f"- VWAP: {indicators.get('VWAP', 'N/A'):.2f}\n"
-        
+        report += f"- MFI (Money Flow): {fmt('MFI')}\n"
+        report += f"- VWAP: {fmt('VWAP')}\n"
+
         return report
     except Exception as e:
         return f"Lỗi khi lấy dữ liệu TradingView cho {symbol}: {str(e)}"
