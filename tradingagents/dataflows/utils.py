@@ -52,6 +52,29 @@ def get_current_date():
     return date.today().strftime("%Y-%m-%d")
 
 
+# Prefix/keyword cho commodity + forex symbols mà Yahoo Finance KHÔNG có.
+# Yahoo có XAUUSD=X (forex pair) nhưng không có XAUUSD spot trader VN dùng.
+# yfinance call trên các symbol này luôn ra 404 + log spam → skip hoàn toàn.
+_COMMODITY_FOREX_PATTERNS = (
+    "XAUUSD", "XAGUSD", "XAUUSDc", "XAUUSDm", "XAUUSD.e",  # Gold
+    "XAGUSD", "XAGUSDc", "XAGUSDm",                          # Silver
+    "USOIL", "UKOIL", "WTIUSD", "BRENT",                     # Oil
+    "GOLD", "SILVER", "OIL",                                 # Generic
+)
+
+
+def is_commodity_or_forex(ticker: str) -> bool:
+    """Return True nếu ticker là commodity/forex spot không có trên Yahoo.
+
+    Dùng để skip yfinance call, tránh log 404 spam và dùng search backend
+    thay cho fundamental/news của commodity.
+    """
+    if not isinstance(ticker, str) or not ticker:
+        return False
+    t = ticker.upper().strip()
+    return any(t.startswith(p) or t == p for p in _COMMODITY_FOREX_PATTERNS)
+
+
 def decorate_all_methods(decorator):
     def class_decorator(cls):
         for attr_name, attr_value in cls.__dict__.items():

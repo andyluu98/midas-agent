@@ -250,6 +250,15 @@ def get_fundamentals(
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
 ):
     """Get company fundamentals overview from yfinance."""
+    # Skip yfinance cho commodity/forex — Yahoo không có info cho XAUUSD...
+    from .utils import is_commodity_or_forex
+    if is_commodity_or_forex(ticker):
+        return (
+            f"## {ticker} Fundamentals (yfinance skipped — commodity/forex)\n\n"
+            f"Yahoo Finance không có fundamental cho {ticker} spot. "
+            f"Phân tích vàng cần dùng macro data (lãi suất Fed, CPI, lợi suất "
+            f"trái phiếu 10y, USD index, ETF GLD flow) — lấy qua search backend."
+        )
     try:
         ticker_obj = yf.Ticker(ticker.upper())
         info = yf_retry(lambda: ticker_obj.info)

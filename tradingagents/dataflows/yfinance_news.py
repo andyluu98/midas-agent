@@ -64,6 +64,17 @@ def get_news_yfinance(
     Returns:
         Formatted string containing news articles
     """
+    # Skip yfinance cho commodity/forex spot (XAUUSD...) — Yahoo không có
+    # những symbol này, gọi sẽ ra 404 spam log. Dùng search backend ở
+    # tầng trên (news_data_tools) thay thế.
+    from .utils import is_commodity_or_forex
+    if is_commodity_or_forex(ticker):
+        return (
+            f"## {ticker} News (yfinance skipped — commodity/forex spot)\n\n"
+            f"Yahoo Finance không cung cấp tin tức cho {ticker} spot. "
+            f"Dùng search backend (Tavily/Anthropic/CLI) thay thế."
+        )
+
     try:
         stock = yf.Ticker(ticker)
         news = yf_retry(lambda: stock.get_news(count=20))
