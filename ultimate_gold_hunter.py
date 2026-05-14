@@ -17,7 +17,7 @@ from tradingagents.dataflows.mt5_provider import (
 )
 from tradingagents.dataflows.kronos_provider import multi_timeframe_forecast
 from tradingagents.dataflows.brief_renderer import render_brief
-from tradingagents.dataflows.search_provider import print_active_backend
+from tradingagents.dataflows.search_provider import print_active_backend, search
 import MetaTrader5 as mt5
 
 # Nạp cấu hình
@@ -92,6 +92,12 @@ def run_ultimate_hunter(ticker="XAUUSD"):
         fetch_future_ts=get_future_timestamps,
     )
     print(kronos_consensus.summary())
+
+    # NEWS BRIEF: in tin tức ngay sau Kronos để user luôn thấy bối cảnh
+    # ngay cả khi gate skip phiên. Dùng Tavily/backend free, không tốn LLM.
+    news_brief = _fetch_news_brief()
+    if news_brief:
+        print(news_brief)
 
     # GATE: Skip phiên nếu Kronos M15 NEUTRAL (không rõ hướng → không scalp)
     m15_fc = _get_m15_forecast(kronos_consensus)
@@ -183,11 +189,35 @@ def run_ultimate_hunter(ticker="XAUUSD"):
         ticker=ticker,
         price=price,
         kronos_summary=kronos_consensus.summary(),
+        news_brief=news_brief,
         tv_m15=tv_m15,
         full_report=full_report,
         brief=brief,
     )
     print(f"📁 Báo cáo MD đã lưu: {md_path}")
+
+
+def _fetch_news_brief(query: str = "XAUUSD gold price Fed inflation DXY", n: int = 5) -> str:
+    """Lấy nhanh n tin tức vàng/Fed qua Tavily (hoặc backend khả dụng).
+    Trả về text bullets in CLI; rỗng nếu lỗi hoặc không có backend.
+    """
+    try:
+        r = search(query, max_results=n)
+    except Exception as exc:
+        return f"\n📰 TIN TỨC: lỗi gọi search backend — {exc}"
+    if r.error:
+        return f"\n📰 TIN TỨC ({r.backend}): {r.error}"
+    if not r.results:
+        return f"\n📰 TIN TỨC ({r.backend}): không có kết quả."
+    lines = [f"\n📰 TIN TỨC HIỆN TẠI (backend: {r.backend}, query: {query!r}):"]
+    for i, x in enumerate(r.results[:n], 1):
+        title = (x.title or "(no title)").strip()
+        if len(title) > 120:
+            title = title[:117] + "..."
+        lines.append(f"   [{i}] {title}")
+        if x.url:
+            lines.append(f"       → {x.url}")
+    return "\n".join(lines)
 
 
 def _build_full_report(final_state: dict) -> str:
@@ -207,7 +237,7 @@ def _build_full_report(final_state: dict) -> str:
     return "".join(parts)
 
 
-def _save_md_report(ticker, price, kronos_summary, tv_m15, full_report, brief) -> Path:
+def _save_md_report(ticker, price, kronos_summary, news_brief, tv_m15, full_report, brief) -> Path:
     """Lưu báo cáo Markdown vào plans/reports/hunter-{YYMMDD-HHMM}-{ticker}.md."""
     now = datetime.now()
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", ticker.lower()).strip("-")
@@ -219,6 +249,7 @@ def _save_md_report(ticker, price, kronos_summary, tv_m15, full_report, brief) -
         f"# 🏹 Hunter Report — {ticker} @ ${price:.2f}\n\n"
         f"**Thời điểm:** {now.strftime('%d/%m/%Y %H:%M')} ICT\n\n"
         f"## 🔮 Kronos Consensus\n\n```\n{kronos_summary}\n```\n\n"
+        f"## 📰 News Brief (Tavily)\n\n```{news_brief or ' (không có)'}\n```\n\n"
         f"## 🛡️ TradingView M15\n\n```\n{tv_m15}\n```\n"
         f"{full_report}\n\n"
         f"---\n\n## 📋 Bản tin tóm tắt\n\n```\n{brief}\n```\n"
