@@ -329,8 +329,9 @@ class TradingAgentsGraph:
         # Store current state for reflection.
         self.curr_state = final_state
 
-        # Log state to disk.
-        self._log_state(trade_date, final_state)
+        # Log state to disk (có thể tắt qua config["state_log_enabled"] = False).
+        if self.config.get("state_log_enabled", True):
+            self._log_state(trade_date, final_state)
 
         # Store decision for deferred reflection on the next same-ticker run.
         self.memory_log.store_decision(

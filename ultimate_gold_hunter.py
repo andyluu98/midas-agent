@@ -1,6 +1,8 @@
 import os
+import re
 import sys
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Thêm đường dẫn dự án vào path
@@ -115,6 +117,9 @@ def run_ultimate_hunter(ticker="XAUUSD"):
     config["quick_think_llm"] = "deepseek-v4-flash"
     config["output_language"] = "Vietnamese"
     config["max_debate_rounds"] = 2
+    # Tắt JSON log ~/.tradingagents/logs/.../full_states_log_*.json — đã in
+    # CLI và lưu MD ở dưới, không cần dump JSON 36KB nữa.
+    config["state_log_enabled"] = False
     config["data_vendors"] = {
         **config.get("data_vendors", {}),
         "news_data": "alpha_vantage",
@@ -157,7 +162,11 @@ def run_ultimate_hunter(ticker="XAUUSD"):
     trade_date = datetime.now().strftime("%Y-%m-%d")
     final_state, _ = ta.propagate(ticker, trade_date)
 
-    # Bản tin cô đọng ~80 dòng cho user
+    # In 5 báo cáo phân tích đầy đủ trên CLI (giống session 13/05).
+    full_report = _build_full_report(final_state)
+    print(full_report)
+
+    # Bản tin cô đọng ~80 dòng — plan + lot deterministic
     brief = render_brief(
         ticker=ticker,
         mt5_info=mt5_info,
@@ -168,6 +177,54 @@ def run_ultimate_hunter(ticker="XAUUSD"):
         llm=ta.quick_thinking_llm,
     )
     print("\n" + brief + "\n")
+
+    # Lưu MD report vào plans/reports/
+    md_path = _save_md_report(
+        ticker=ticker,
+        price=price,
+        kronos_summary=kronos_consensus.summary(),
+        tv_m15=tv_m15,
+        full_report=full_report,
+        brief=brief,
+    )
+    print(f"📁 Báo cáo MD đã lưu: {md_path}")
+
+
+def _build_full_report(final_state: dict) -> str:
+    """Ghép 5 báo cáo phân tích thành một chuỗi để in CLI và lưu MD."""
+    sections = [
+        ("NEWS REPORT (tin tức vĩ mô + ngành vàng)", final_state.get("news_report", "")),
+        ("SENTIMENT REPORT (tâm lý thị trường)", final_state.get("sentiment_report", "")),
+        ("FUNDAMENTALS REPORT (yếu tố cơ bản)", final_state.get("fundamentals_report", "")),
+        ("INVESTMENT PLAN (Research Manager)", final_state.get("investment_plan", "")),
+        ("FINAL TRADE DECISION (Portfolio Manager)", final_state.get("final_trade_decision", "")),
+    ]
+    parts = []
+    for title, body in sections:
+        if not body:
+            continue
+        parts.append(f"\n\n{'─' * 60}\n📰 {title}\n{'─' * 60}\n{body}")
+    return "".join(parts)
+
+
+def _save_md_report(ticker, price, kronos_summary, tv_m15, full_report, brief) -> Path:
+    """Lưu báo cáo Markdown vào plans/reports/hunter-{YYMMDD-HHMM}-{ticker}.md."""
+    now = datetime.now()
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", ticker.lower()).strip("-")
+    fname = f"hunter-{now.strftime('%y%m%d-%H%M')}-{slug}.md"
+    out_dir = Path("plans/reports")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / fname
+    md = (
+        f"# 🏹 Hunter Report — {ticker} @ ${price:.2f}\n\n"
+        f"**Thời điểm:** {now.strftime('%d/%m/%Y %H:%M')} ICT\n\n"
+        f"## 🔮 Kronos Consensus\n\n```\n{kronos_summary}\n```\n\n"
+        f"## 🛡️ TradingView M15\n\n```\n{tv_m15}\n```\n"
+        f"{full_report}\n\n"
+        f"---\n\n## 📋 Bản tin tóm tắt\n\n```\n{brief}\n```\n"
+    )
+    out_path.write_text(md, encoding="utf-8")
+    return out_path
 
 
 if __name__ == "__main__":
